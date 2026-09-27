@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-authorization-reference"
+version = "0.1.0"
+description = "Reference architecture: deny-by-default authorization at the AI agent tool-invocation boundary, with delegated scopes, token exchange, tenant isolation, human approval, and audit."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "Aakash Chandra" }]
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+agentauthz-demo = "agentauthz.demo:main"
+
+[tool.setuptools]
+packages = ["agentauthz"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

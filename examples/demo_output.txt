@@ -1,0 +1,56 @@
+agent-authorization-reference demo
+Alice (tenant acme) delegates to the support agent. All identities and data are synthetic.
+
+[1] Model asks to read Alice's record acme-001 with a read-scoped token
+    -> ALLOWED: all checks passed
+       output: {"record_id": "acme-001", "customer": "Acme Rockets", "status": "open"}
+
+[2] After reading injected content, model asks to delete ANOTHER tenant's record and claims approval
+    -> DENIED: scope 'records:delete' not granted (token has ['records:read']); resource belongs to tenant 'globex', token is for 'acme'
+
+[3] Same request with a delete-scoped token: tenant isolation still denies it
+    -> DENIED: resource belongs to tenant 'globex', token is for 'acme'
+
+[4] Agent asks the STS for an admin scope Alice never delegated
+    -> STS REFUSED (invalid_scope): not in 'user holds': ['records:admin']; not in 'user delegated to agent': ['records:admin']; not in 'agent registration allows': ['records:admin']; not in 'resource accepts': ['records:admin']
+
+[5] Model asks to delete Alice's own record acme-002 (irreversible), again claiming approval
+    -> PENDING_APPROVAL: irreversible action requires human approval
+       approval id: a5eb873cc0a0
+
+[6] The agent tries to approve its own request
+    -> REFUSED: 'spiffe://example.test/agents/support' is not a registered human approver
+
+[7] Alice (human) approves request a5eb873cc0a0
+
+[8] Agent retries the exact approved request
+    -> ALLOWED: all checks passed; approved by user:alice
+       output: {"record_id": "acme-002", "deleted": true}
+
+[9] Model asks to export acme-001 to Alice's auditor (irreversible disclosure)
+    -> PENDING_APPROVAL: irreversible action requires human approval
+       approval id: 52e2535da438
+
+[10] Alice approves the export to auditor@acme.example
+
+[11] Injected instruction swaps the recipient and reuses Alice's approval
+    -> DENIED: approval was granted for a different request
+
+[12] Agent sends the exact approved export
+    -> ALLOWED: all checks passed; approved by user:alice
+       output: {"record_id": "acme-001", "exported_to": "auditor@acme.example"}
+
+[13] Agent replays the same approval a second time
+    -> DENIED: approval already used (single use)
+
+[14] A different agent presents the support agent's access token (stolen token)
+    -> DENIED: token was issued to actor 'spiffe://example.test/agents/support', but the caller is 'spiffe://example.test/agents/reporting'
+
+[15] Model invents a tool that is not registered
+    -> DENIED: tool 'run_shell' is not registered (deny by default)
+
+[16] Five minutes later, the agent reuses the expired access token
+    -> DENIED: access token rejected: token expired
+
+Audit log: 12 events (allow=3, deny=7, approval_required=2)
+Audit events written to examples/audit_log.jsonl
